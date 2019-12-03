@@ -3,6 +3,7 @@
                             partition-by])
   (:require [clojure.core.async.impl.ioc-macros :as ioc]
             [clojure.core.async :refer :all :as async]
+            [clojure.set :as set]
             [clojure.test :refer :all])
   (:import [java.io FileInputStream ByteArrayOutputStream File]))
 
@@ -339,12 +340,9 @@
 
 
   (defn identity-chan
-    "Defines a channel that instantly writes the given value"
+    "Defines a channel that contains the given value"
     [x]
-    (let [c (chan 1)]
-      (>!! c x)
-      (close! c)
-      c))
+    (to-chan [x]))
 
   (deftest async-test
     (testing "values are returned correctly"
@@ -436,29 +434,38 @@
                        (chan) ([v] :failed)
                        :default 42))))))
 
-    (testing "alt obeys its random-array initialization"
-      (is (= #{:two}
-             (with-redefs [clojure.core.async/random-array
-                           (constantly (int-array [1 2 0]))]
-               (<!! (go (loop [acc #{}
-                               cnt 0]
-                          (if (< cnt 10)
-                            (let [label (alt!
-                                         (identity-chan :one) ([v] v)
-                                         (identity-chan :two) ([v] v)
-                                         (identity-chan :three) ([v] v))]
-                              (recur (conj acc label) (inc cnt)))
-                            acc)))))))))
+    (testing "alt random checks all chans"
+      (is (set/subset?
+            (<!! (go (loop [acc #{}
+                            cnt 0]
+                       (if (< cnt 20)
+                         (let [label (alt!
+                                      (identity-chan :one) ([v] v)
+                                      (identity-chan :two) ([v] v)
+                                      (identity-chan :three) ([v] v))]
+                           (recur (conj acc label) (inc cnt)))
+                         acc))))
+            #{:one :two :three}))))
 
   (deftest close-on-exception-tests
-    (testing "threads"
-      (is (nil? (<!! (thread (assert false "This exception is expected")))))
-      (is (nil? (<!! (thread (alts!! [(identity-chan 42)])
-                             (assert false "This exception is expected"))))))
-    (testing "go blocks"
-      (is (nil? (<!! (go (assert false "This exception is expected")))))
-      (is (nil? (<!! (go (alts! [(identity-chan 42)])
-                         (assert false "This exception is expected")))))))
+    (let [eh (Thread/getDefaultUncaughtExceptionHandler)
+          msg "This exception is expected"]
+      (try
+        ;; don't spam stderr
+        (Thread/setDefaultUncaughtExceptionHandler
+          (reify java.lang.Thread$UncaughtExceptionHandler
+            (uncaughtException [_ _thread _throwable])))
+        (testing "threads"
+          (is (nil? (<!! (thread (assert false msg)))))
+          (is (nil? (<!! (thread (alts!! [(identity-chan 42)])
+                           (assert false msg))))))
+        (testing "go blocks"
+          (is (nil? (<!! (go (assert false msg)))))
+          (is (nil? (<!! (go (alts! [(identity-chan 42)])
+                             (assert false msg))))))
+        (finally
+          ;; restore
+          (Thread/setDefaultUncaughtExceptionHandler eh)))))
 
 (deftest resolution-tests
     (let [<! (constantly 42)]

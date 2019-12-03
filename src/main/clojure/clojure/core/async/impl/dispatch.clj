@@ -13,7 +13,21 @@
 
 (set! *warn-on-reflection* true)
 
-(defonce executor (delay (tp/thread-pool-executor)))
+(defonce ^:private in-dispatch (ThreadLocal.))
+
+(defonce executor
+  (delay (tp/thread-pool-executor #(.set ^ThreadLocal in-dispatch true))))
+
+(defn in-dispatch-thread?
+  "Returns true if the current thread is a go block dispatch pool thread"
+  []
+  (boolean (.get ^ThreadLocal in-dispatch)))
+
+(defn check-blocking-in-dispatch
+  "If the current thread is a dispatch pool thread, throw an exception"
+  []
+  (when (.get ^ThreadLocal in-dispatch)
+    (throw (IllegalStateException. "Invalid blocking call in dispatch thread"))))
 
 (defn run
   "Runs Runnable r in a thread pool thread"

@@ -11,7 +11,14 @@
 
 go blocks are dispatched over an internal thread pool, which
 defaults to 8 threads. The size of this pool can be modified using
-the Java system property `clojure.core.async.pool-size`."
+the Java system property `clojure.core.async.pool-size`.
+
+Set Java system property `clojure.core.async.go-checking` to true
+to validate go blocks do not invoke core.async blocking operations.
+Property is read once, at namespace load time. Recommended for use
+primarily during development. Invalid blocking calls will throw in
+go block threads - use Thread.setDefaultUncaughtExceptionHandler()
+to catch and handle."
   (:refer-clojure :exclude [reduce transduce into merge map take partition
                             partition-by bounded-count])
   (:require [clojure.core.async.impl.protocols :as impl]
@@ -104,9 +111,23 @@ the Java system property `clojure.core.async.pool-size`."
   [^long msecs]
   (timers/timeout msecs))
 
-(defn <!!
+(defmacro defblockingop
+  [op doc arglist & body]
+  (let [as (mapv #(list 'quote %) arglist)]
+    `(def ~(with-meta op {:arglists `(list ~as) :doc doc})
+       (if (Boolean/getBoolean "clojure.core.async.go-checking")
+         (fn ~arglist
+           (dispatch/check-blocking-in-dispatch)
+           ~@body)
+         (fn ~arglist
+           ~@body)))))
+
+(defblockingop <!!
   "takes a val from port. Will return nil if closed. Will block
-  if nothing is available."
+  if nothing is available.
+  Not intended for use in direct or transitive calls from (go ...) blocks.
+  Use the clojure.core.async.go-checking flag to detect invalid use (see
+  namespace docs)."
   [port]
   (let [p (promise)
         ret (impl/take! port (fn-handler (fn [v] (deliver p v))))]
@@ -124,6 +145,11 @@ the Java system property `clojure.core.async.pool-size`."
   "Asynchronously takes a val from port, passing to fn1. Will pass nil
    if closed. If on-caller? (default true) is true, and value is
    immediately available, will call fn1 on calling thread.
+
+   fn1 may be run in a fixed-size dispatch thread pool and should not
+   perform blocking IO, including core.async blocking ops (those that
+   end in !!).
+
    Returns nil."
   ([port fn1] (take! port fn1 true))
   ([port fn1 on-caller?]
@@ -135,9 +161,12 @@ the Java system property `clojure.core.async.pool-size`."
              (dispatch/run #(fn1 val)))))
        nil)))
 
-(defn >!!
+(defblockingop >!!
   "puts a val into port. nil values are not allowed. Will block if no
-  buffer space is available. Returns true unless port is already closed."
+  buffer space is available. Returns true unless port is already closed.
+  Not intended for use in direct or transitive calls from (go ...) blocks.
+  Use the clojure.core.async.go-checking flag to detect invalid use (see
+  namespace docs)."
   [port val]
   (let [p (promise)
         ret (impl/put! port val (fn-handler (fn [open?] (deliver p open?))))]
@@ -159,8 +188,13 @@ the Java system property `clojure.core.async.pool-size`."
   "Asynchronously puts a val into port, calling fn1 (if supplied) when
    complete, passing false iff port is already closed. nil values are
    not allowed. If on-caller? (default true) is true, and the put is
-   immediately accepted, will call fn1 on calling thread.  Returns
-   true unless port is already closed."
+   immediately accepted, will call fn1 on calling thread.
+
+   fn1 may be run in a fixed-size dispatch thread pool and should not
+   perform blocking IO, including core.async blocking ops (those that
+   end in !!).
+
+   Returns true unless port is already closed."
   ([port val]
      (if-let [ret (impl/put! port val fhnop)]
        @ret
@@ -264,13 +298,15 @@ the Java system property `clojure.core.async.pool-size`."
          (when got
            (channels/box [(:default opts) :default])))))))
 
-(defn alts!!
+(defblockingop alts!!
   "Like alts!, except takes will be made as if by <!!, and puts will
-  be made as if by >!!, will block until completed, and not intended
-  for use in (go ...) blocks."
-  [ports & {:as opts}]
+  be made as if by >!!, will block until completed.
+  Not intended for use in direct or transitive calls from (go ...) blocks.
+  Use the clojure.core.async.go-checking flag to detect invalid use (see
+  namespace docs)."
+  [ports & opts]
   (let [p (promise)
-        ret (do-alts (partial deliver p) ports opts)]
+        ret (do-alts (partial deliver p) ports (apply hash-map opts))]
     (if ret
       @ret
       (deref p))))
@@ -410,6 +446,11 @@ the Java system property `clojure.core.async.pool-size`."
   the only JS thread when in ClojureScript). Upon completion of the
   operation, the body will be resumed.
 
+  go blocks should not (either directly or indirectly) perform operations
+  that may block indefinitely. Doing so risks depleting the fixed pool of
+  go block threads, causing all go block processing to stop. This includes
+  core.async blocking ops (those ending in !!) and other blocking IO.
+
   Returns a channel which will receive the result of the body when
   completed"
   [& body]
@@ -503,14 +544,10 @@ the Java system property `clojure.core.async.pool-size`."
                        true)))]
        (dotimes [_ n]
          (case type
-               :blocking (thread
-                          (let [job (<!! jobs)]
-                            (when (process job)
-                              (recur))))
-               :compute (go-loop []
-                                   (let [job (<! jobs)]
-                                     (when (process job)
-                                       (recur))))
+               (:blocking :compute) (thread
+                                      (let [job (<!! jobs)]
+                                        (when (process job)
+                                          (recur))))
                :async (go-loop []
                                  (let [job (<! jobs)]
                                    (when (async job)

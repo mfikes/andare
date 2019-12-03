@@ -4,6 +4,7 @@ os:
 language: java
 
 install:
+  - brew update
   - brew install leiningen clojure lumo planck
 
 script: 

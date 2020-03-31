@@ -9,13 +9,13 @@ A fork of [core.async](https://github.com/clojure/core.async) ported for use wit
 [Deps](https://clojure.org/guides/deps_and_cli) dependency information:
 
 ```clj
- {andare {:mvn/version "0.12.0"}}
+ {andare {:mvn/version "1.0.0"}}
 ```  
 
 [Leiningen](https://github.com/technomancy/leiningen) dependency information:
 
 ```clj
- [andare "0.12.0"]
+ [andare "1.0.0"]
 ```
 
 [Maven](http://maven.apache.org/) dependency information:
@@ -24,7 +24,7 @@ A fork of [core.async](https://github.com/clojure/core.async) ported for use wit
 <dependency>
   <groupId>andare</groupId>
   <artifactId>andare</artifactId>
-  <version>0.12.0</version>
+  <version>1.0.0</version>
 </dependency>
 ```
 
@@ -44,6 +44,7 @@ Andare preserves the namespaces present in `core.async`. Thus, bootstrap-compati
 
 | Andare | `core.async` |
 |:------:|:------------:|
+| 1.0.0  | 1.1.582      |
 | 0.12.0 | 0.6.532      |
 | 0.11.0 | 0.4.500      |
 | 0.10.0 | 0.4.490      |
@@ -89,6 +90,6 @@ lein test
 ## License
 
 Revisions in this fork:
-Copyright © 2016–2019 Mike Fikes and Contributors
+Copyright © 2016–2020 Mike Fikes and Contributors
 
 Distributed under the Eclipse Public License, the same as Clojure.

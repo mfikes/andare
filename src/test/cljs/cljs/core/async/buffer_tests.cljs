@@ -1,3 +1,11 @@
+;;   Copyright (c) Rich Hickey and contributors. All rights reserved.
+;;   The use and distribution terms for this software are covered by the
+;;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;;   which can be found in the file epl-v10.html at the root of this distribution.
+;;   By using this software in any fashion, you are agreeing to be bound by
+;;   the terms of this license.
+;;   You must not remove this notice, or any other, from this software.
+
 (ns cljs.core.async.buffer-tests
   (:require-macros [cljs.core.async.macros :as m :refer [go]])
   (:require [cljs.core.async
@@ -30,12 +38,20 @@
       (is (full? fb))
       #_(assert (throws? (add! fb :3)))
 
+      ; already overflown
+      (add! fb :3)
+      (is (= 3 (count fb)))
+      (is (full? fb))
+
       (is (= :1 (remove! fb)))
+      (is (= 2 (count fb)))
+      (is (full? fb))
+
+      (is (= :2 (remove! fb)))
+      (is (= 1 (count fb)))
       (is (not (full? fb)))
 
-      (is (= 1 (count fb)))
-      (is (= :2 (remove! fb)))
-
+      (is (= :3 (remove! fb)))
       (is (= 0 (count fb)))
       #_(is (helpers/throws? (remove! fb)))))
 

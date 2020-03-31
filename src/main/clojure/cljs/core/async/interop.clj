@@ -6,14 +6,15 @@
 ;;   the terms of this license.
 ;;   You must not remove this notice, or any other, from this software.
 
-(ns cljs.core.async.test-helpers)
+(ns cljs.core.async.interop)
 
-(defn latch [m f]
-  (let [r (atom 0)]
-    (add-watch r :latch
-      (fn [_ _ o n]
-        (when (== n m) (f))))
-    r))
-
-(defn inc! [r]
-  (swap! r inc))
+(defmacro <p!
+  "EXPERIMENTAL: Takes the value of a promise resolution. The value of a rejected promise
+  will be thrown wrapped in a instance of ExceptionInfo, acessible via ex-cause."
+  [exp]
+  `(let [v# (cljs.core.async/<! (cljs.core.async.interop/p->c ~exp))]
+     (if (and
+          (instance? cljs.core/ExceptionInfo v#)
+          (= (:error (ex-data v#)) :promise-error))
+       (throw v#)
+       v#)))

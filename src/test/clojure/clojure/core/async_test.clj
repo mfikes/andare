@@ -273,8 +273,23 @@
       (is (= [0 1 2 3]
              (<!! (a/into [] a))))
       (is (= [0 1 2 3]
-             (<!! (a/into [] b))))))
+             (<!! (a/into [] b)))))
 
+    ;; ASYNC-127
+    (let [ch (to-chan [1 2 3])
+          m (mult ch)
+          t-1 (chan)
+          t-2 (chan)
+          t-3 (chan)]
+      (tap m t-1)
+      (tap m t-2)
+      (tap m t-3)
+      (close! t-3)
+      (is (= 1 (<!! t-1)))
+      (is (= nil (a/poll! t-1))) ;; t-2 hasn't taken yet
+      (is (= 1 (<!! t-2)))
+      (is (= 2 (<!! t-1))) ;; now available
+      (is (= nil (a/poll! t-1)))))
 
   (testing "mix"
     (let [out (chan)
@@ -283,7 +298,18 @@
       (admix mx (a/to-chan [4 5 6]))
 
       (is (= #{1 2 3 4 5 6}
-             (<!! (a/into #{} (a/take 6 out)))))))
+             (<!! (a/into #{} (a/take 6 out))))))
+
+    ;; ASYNC-145
+    (let [out (chan 2500)
+          mix (mix out)]
+      (dotimes [i 2048]
+        (let [c (chan)]
+          (admix mix c)
+          (put! c i)))
+
+      (is (= (set (range 2048))
+            (<!! (a/into #{} (a/take 2048 out)))))))
 
   (testing "pub-sub"
     (let [a-ints (chan 5)
@@ -368,6 +394,35 @@
   (doseq [b (range 1 10)
           t (range 1 10)]
     (check-expanding-transducer b 3 3 t)))
+
+(deftest expanding-transducer-puts-can-ignore-buffer-fullness
+  (testing "non-blocking puts behave as expected"
+    ;; put coll, expanding xf,
+    (let [c (chan 1 (mapcat identity))]
+      (is (true? (>!! c [1 2 3])))
+      (is (= 1 (<!! c)))
+      (is (nil? (offer! c [4 5 6])))
+      (is (= 2 (<!! c)))
+      (is (= 3 (<!! c)))
+      (is (true? (offer! c [4 5 6])))))
+
+  (testing "blocking puts can execute during takes even when the buffer is full"
+    (let [c (chan 1 (mapcat identity))]
+      (is (true? (>!! c [1 2 3])))
+      (is (= 1 (<!! c)))
+      (is (nil? (offer! c [4 5 6])))
+      (let [counter (atom 0)
+            blocking-put (future (let [r (>!! c [4 5 6])]
+                                   (swap! counter inc)
+                                   r))]
+        (is (= 0 @counter))
+        (is (= 2 (<!! c)))
+
+        ;; don't allow puts, buffer still full
+        (is (false? (deref blocking-put 10 false)))
+        (is (= 0 @counter))
+
+        (is (nil? (offer! c [7 8 9])))))))
 
 ;; in 1.7+, use (map f)
 (defn mapping [f]

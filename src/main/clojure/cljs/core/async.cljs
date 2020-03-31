@@ -1,3 +1,11 @@
+;;   Copyright (c) Rich Hickey and contributors. All rights reserved.
+;;   The use and distribution terms for this software are covered by the
+;;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;;   which can be found in the file epl-v10.html at the root of this distribution.
+;;   By using this software in any fashion, you are agreeing to be bound by
+;;   the terms of this license.
+;;   You must not remove this notice, or any other, from this software.
+
 (ns cljs.core.async
     (:refer-clojure :exclude [reduce transduce into merge map take partition partition-by])
     (:require [cljs.core.async.impl.protocols :as impl]
@@ -446,7 +454,6 @@
            (reset! dctr (count chs))
            (doseq [c chs]
                (when-not (put! c val done)
-                 (done nil)
                  (untap* m c)))
            ;;wait for all
            (when (seq chs)
@@ -513,7 +520,7 @@
         solo-modes #{:mute :pause}
         attrs (conj solo-modes :solo)
         solo-mode (atom :mute)
-        change (chan)
+        change (chan (sliding-buffer 1))
         changed #(put! change true)
         pick (fn [attr chs]
                (reduce-kv

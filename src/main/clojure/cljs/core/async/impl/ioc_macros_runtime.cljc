@@ -375,10 +375,18 @@
      inst-id (add-instruction (->Call args-ids))]
     inst-id))
 
+(defn local-init-to-ssa [init]
+  (ioc/gen-plan
+    [bind-id (item-to-ssa init)
+     bind-id (if (::global (meta bind-id))
+               (add-instruction (->Const bind-id))
+               (fn [p] [bind-id p]))]
+    bind-id))
+
 (defn let-binding-to-ssa
   [[sym bind]]
   (ioc/gen-plan
-    [bind-id (item-to-ssa bind)
+    [bind-id (local-init-to-ssa bind)
      _ (push-alter-binding :locals assoc sym bind-id)]
     bind-id))
 
@@ -686,8 +694,7 @@
                (fn [p]
                  [(locals x) p])
                (fn [p]
-                 [x p])
-               #_(add-instruction (->Const x)))]
+                 [(vary-meta x assoc ::global true) p]))]
     inst-id))
 
 (defmethod -item-to-ssa :map

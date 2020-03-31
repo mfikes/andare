@@ -555,8 +555,8 @@
                  (and (seq? form) (= (first form) 'finally)) (-> accum
                                                                (assoc :state :finally)
                                                                (assoc :finally form))
-                 :else (throw (Exception. "Only catch or finally clause can follow catch in try expression")))
-        :finally (throw (Exception. "finally clause must be last in try expression"))))
+                 :else (throw (#?(:clj Exception. :cljs js/Error.) "Only catch or finally clause can follow catch in try expression")))
+        :finally (throw (#?(:clj Exception. :cljs js/Error.) "finally clause must be last in try expression"))))
     {:state :body
      :body []
      :catches []

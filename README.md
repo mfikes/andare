@@ -9,13 +9,13 @@ A fork of [core.async](https://github.com/clojure/core.async) ported for use wit
 [Deps](https://clojure.org/guides/deps_and_cli) dependency information:
 
 ```clj
- {andare {:mvn/version "1.0.0"}}
+ {andare {:mvn/version "1.1.587"}}
 ```  
 
 [Leiningen](https://github.com/technomancy/leiningen) dependency information:
 
 ```clj
- [andare "1.0.0"]
+ [andare "1.1.587"]
 ```
 
 [Maven](http://maven.apache.org/) dependency information:
@@ -24,7 +24,7 @@ A fork of [core.async](https://github.com/clojure/core.async) ported for use wit
 <dependency>
   <groupId>andare</groupId>
   <artifactId>andare</artifactId>
-  <version>1.0.0</version>
+  <version>1.1.587</version>
 </dependency>
 ```
 
@@ -39,24 +39,6 @@ npm install andare
 ## Usage
 
 Andare preserves the namespaces present in `core.async`. Thus, bootstrap-compatible ClojureScript code that makes use of `core.async` can operate in self-hosted environments if you make the Andare artifact available for loading in lieu of the official `core.async` artifact.
-
-## Compatibility
-
-| Andare | `core.async` |
-|:------:|:------------:|
-| 1.0.0  | 1.1.582      |
-| 0.12.0 | 0.6.532      |
-| 0.11.0 | 0.4.500      |
-| 0.10.0 | 0.4.490      |
-| 0.9.0  | 0.4.474      |
-| 0.8.0  | 0.3.465      |
-| 0.7.0  | 0.3.443      |
-| 0.6.0  | 0.3.442      |
-| 0.5.0  | 0.3.426      |
-| 0.4.0  | 0.2.395      |
-| 0.3.0  | 0.2.391      |
-| 0.2.0  | 0.2.374      |
-| 0.1.0  | 0.2.374      |
 
 ## Testing
 

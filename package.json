@@ -1,6 +1,6 @@
 {
   "name": "andare",
-  "version": "1.0.0",
+  "version": "1.1.587",
   "description": "A fork of core.async ported for use with bootstrapped ClojureScript.",
   "author": {
     "name": "Mike Fikes",

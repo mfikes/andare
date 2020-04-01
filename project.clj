@@ -1,4 +1,4 @@
-(defproject andare "1.0.0"
+(defproject andare "1.1.587"
   :description "core.async for bootstrap ClojureScript"
   :url "https://github.com/mfikes/andare"
   :license {:name "Eclipse Public License"
